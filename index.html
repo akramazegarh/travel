@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tour à vélo Pays-Bas — Itinéraire</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css">
+<style>
+  :root {
+    --canal: #1B4B43;
+    --canal-light: #E1EEEA;
+    --route-red: #C8102E;
+    --route-red-light: #FBE2E4;
+    --dune: #F0EAD8;
+    --klomp: #E8890C;
+    --klomp-light: #FCEBD2;
+    --sea: #2F7A93;
+    --sea-light: #E4EFF2;
+    --ink: #1A2E2A;
+    --ink-soft: #5B6B65;
+    --border: #D8D2BE;
+    --surface: #FFFDF8;
+    --card: #FFFFFF;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--dune);
+    color: var(--ink);
+    padding: 2rem 1rem 4rem;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  header { margin-bottom: 1.5rem; }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--sea);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  h1 {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    font-size: 34px;
+    letter-spacing: 0.01em;
+    margin: 0 0 6px;
+    color: var(--canal);
+    text-transform: uppercase;
+  }
+  .subtitle { color: var(--ink-soft); font-size: 14px; margin: 0; }
+  .stats {
+    display: flex;
+    gap: 10px;
+    margin: 1.25rem 0 1.5rem;
+    flex-wrap: wrap;
+  }
+  .stat {
+    flex: 1;
+    min-width: 120px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+  }
+  .stat .label { font-size: 11px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; }
+  .stat .value { font-family: 'Oswald', sans-serif; font-size: 22px; font-weight: 500; color: var(--canal); }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .filters.types { margin-bottom: 1.75rem; }
+  .pill {
+    padding: 6px 13px;
+    border-radius: 999px;
+    font-size: 13px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--ink-soft);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+    transition: all 0.15s ease;
+  }
+  .pill:hover { border-color: var(--sea); }
+  .pill.active {
+    border-color: var(--canal);
+    background: var(--canal);
+    color: #fff;
+  }
+  .day-header {
+    font-family: 'Oswald', sans-serif;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--canal);
+    margin: 1.75rem 0 0.85rem;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .day-header .tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--route-red);
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .day-block { position: relative; padding-left: 30px; }
+  .day-line {
+    position: absolute;
+    left: 10px;
+    top: 4px;
+    bottom: 4px;
+    width: 2px;
+    background: var(--border);
+  }
+  .item { position: relative; margin-bottom: 12px; }
+  .dot {
+    position: absolute;
+    left: -30px;
+    top: 2px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--card);
+    border: 2px solid var(--border);
+    font-size: 12px;
+  }
+  .type-trajet .dot { border-color: var(--sea); color: var(--sea); }
+  .type-visite .dot { border-color: var(--canal); color: var(--canal); }
+  .type-plage .dot { border-color: #4C8C3B; color: #4C8C3B; }
+  .type-repas .dot { border-color: var(--route-red); color: var(--route-red); }
+  .type-soiree .dot { border-color: var(--klomp); color: var(--klomp); }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 9px 13px;
+  }
+  .card .time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .card .title { font-size: 14px; font-weight: 500; margin-top: 2px; }
+  .card .sub { font-size: 12px; color: var(--ink-soft); margin-top: 1px; }
+  .empty { text-align: center; color: var(--ink-soft); padding: 2.5rem 0; font-size: 14px; }
+  @media (max-width: 480px) {
+    h1 { font-size: 26px; }
+    .stat .value { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Route néerlandaise / vélo classique</div>
+    <h1>Amsterdam &amp; environs à vélo</h1>
+    <p class="subtitle">Marken · Volendam · Edam · Alkmaar · Bergen · Haarlem</p>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="label">Jours</div><div class="value">4</div></div>
+    <div class="stat"><div class="label">Distance totale</div><div class="value">~140 km</div></div>
+    <div class="stat"><div class="label">Vélo</div><div class="value">Classique</div></div>
+  </div>
+
+  <div class="filters" id="dayFilters"></div>
+  <div class="filters types" id="typeFilters"></div>
+
+  <div id="timeline"></div>
+</div>
+
+<script>
+const days = [
+  {id:'j1', label:'J1', title:'Amsterdam → Marken → Volendam → Edam', km:'30 km'},
+  {id:'j2', label:'J2', title:'Edam → Alkmaar → Bergen → Bergen aan Zee', km:'45 km'},
+  {id:'j3', label:'J3', title:'Bergen aan Zee → dunes → Haarlem', km:'45 km'},
+  {id:'j4', label:'J4', title:'Haarlem → Amsterdam', km:'20 km'}
+];
+
+const types = [
+  {id:'trajet', label:'Trajet vélo', icon:'ti-bike'},
+  {id:'visite', label:'Visite', icon:'ti-building-arch'},
+  {id:'plage', label:'Plage / nature', icon:'ti-beach'},
+  {id:'repas', label:'Repas', icon:'ti-tools-kitchen-2'},
+  {id:'soiree', label:'Soirée', icon:'ti-glass-cocktail'}
+];
+
+const items = [
+  {day:'j1', time:'08:30', type:'repas', title:'Petit déj', sub:'Départ Amsterdam'},
+  {day:'j1', time:'09:00–10:15', type:'trajet', title:'Amsterdam → Marken', sub:'~16 km, 1h15'},
+  {day:'j1', time:'10:15–11:15', type:'visite', title:'Marken', sub:'Vieux village et digue'},
+  {day:'j1', time:'11:15–12:00', type:'trajet', title:'Marken → Volendam', sub:'~7 km, 30-45 min'},
+  {day:'j1', time:'12:00–13:30', type:'repas', title:'Déjeuner à Volendam', sub:'Poisson fumé sur le port'},
+  {day:'j1', time:'14:30–15:00', type:'trajet', title:'Volendam → Edam', sub:'~7 km, 30 min'},
+  {day:'j1', time:'15:00–17:00', type:'visite', title:'Edam', sub:'Ruelles, canaux, marché au fromage'},
+  {day:'j1', time:'19:00', type:'repas', title:'Dîner en terrasse', sub:'Au bord de l\u2019eau'},
+  {day:'j1', time:'21:30', type:'soiree', title:'Apéro coucher de soleil', sub:'Sur l\u2019IJsselmeer'},
+  {day:'j2', time:'08:30–11:00', type:'trajet', title:'Edam → Alkmaar', sub:'~35 km, 2h30'},
+  {day:'j2', time:'11:00–12:30', type:'visite', title:'Alkmaar', sub:'Marché au fromage, vieille ville'},
+  {day:'j2', time:'13:30–14:15', type:'trajet', title:'Alkmaar → Bergen', sub:'~10 km, 45 min'},
+  {day:'j2', time:'14:15–15:45', type:'visite', title:'Bergen', sub:'Cafés, galeries, forêt'},
+  {day:'j2', time:'15:45–16:15', type:'trajet', title:'Bergen → Bergen aan Zee', sub:'~5 km, 20 min'},
+  {day:'j2', time:'16:15–18:30', type:'plage', title:'Bergen aan Zee', sub:'Détente, baignade'},
+  {day:'j2', time:'18:30', type:'repas', title:'Dîner face à la mer', sub:''},
+  {day:'j2', time:'20:30', type:'soiree', title:'Apéro plage', sub:'Baignade, bars de plage'},
+  {day:'j3', time:'09:30–11:00', type:'trajet', title:'Dunes → Bloemendaal aan Zee', sub:'Route côtière panoramique'},
+  {day:'j3', time:'11:00–12:30', type:'plage', title:'Bloemendaal', sub:'Pause plage, baignade'},
+  {day:'j3', time:'12:30–14:00', type:'repas', title:'Déjeuner à Bloemendaal', sub:''},
+  {day:'j3', time:'14:00–15:00', type:'trajet', title:'Bloemendaal → Haarlem', sub:'~10 km, 45 min'},
+  {day:'j3', time:'15:00–17:00', type:'visite', title:'Haarlem', sub:'Centre historique, Grote Markt'},
+  {day:'j3', time:'19:30', type:'soiree', title:'Sortie bars', sub:'Bières locales, petites rues'},
+  {day:'j4', time:'10:00', type:'repas', title:'Petit déj tranquille', sub:'Check-out'},
+  {day:'j4', time:'11:00–12:30', type:'trajet', title:'Haarlem → Amsterdam', sub:'~20 km, 1h30'},
+  {day:'j4', time:'12:30–14:00', type:'repas', title:'Déjeuner', sub:'À Amsterdam'},
+  {day:'j4', time:'14:00–17:00', type:'visite', title:'Musées ou canaux', sub:'Temps libre'},
+  {day:'j4', time:'19:00', type:'repas', title:'Dîner', sub:''},
+  {day:'j4', time:'21:00', type:'soiree', title:'Derniers verres', sub:'Jordaan, De Pijp'}
+];
+
+let activeDay = 'all';
+let activeTypes = new Set(types.map(t => t.id));
+
+function renderFilters(){
+  const df = document.getElementById('dayFilters');
+  df.innerHTML = '';
+  const allBtn = document.createElement('div');
+  allBtn.className = 'pill' + (activeDay === 'all' ? ' active' : '');
+  allBtn.textContent = 'Tous les jours';
+  allBtn.onclick = () => { activeDay = 'all'; render(); };
+  df.appendChild(allBtn);
+  days.forEach(d => {
+    const b = document.createElement('div');
+    b.className = 'pill' + (activeDay === d.id ? ' active' : '');
+    b.textContent = d.label + ' · ' + d.km;
+    b.onclick = () => { activeDay = d.id; render(); };
+    df.appendChild(b);
+  });
+
+  const tf = document.getElementById('typeFilters');
+  tf.innerHTML = '';
+  types.forEach(t => {
+    const b = document.createElement('div');
+    const on = activeTypes.has(t.id);
+    b.className = 'pill' + (on ? ' active' : '');
+    b.innerHTML = '<i class="ti ' + t.icon + '"></i>' + t.label;
+    b.onclick = () => {
+      if (activeTypes.has(t.id)) activeTypes.delete(t.id); else activeTypes.add(t.id);
+      render();
+    };
+    tf.appendChild(b);
+  });
+}
+
+function render(){
+  renderFilters();
+  const tl = document.getElementById('timeline');
+  tl.innerHTML = '';
+  const visibleDays = days.filter(d => activeDay === 'all' || activeDay === d.id);
+
+  visibleDays.forEach(d => {
+    const dayItems = items.filter(i => i.day === d.id && activeTypes.has(i.type));
+    if (dayItems.length === 0) return;
+
+    const header = document.createElement('div');
+    header.className = 'day-header';
+    header.innerHTML = '<span class="tag">' + d.label + '</span>' + d.title;
+    tl.appendChild(header);
+
+    const wrap = document.createElement('div');
+    wrap.className = 'day-block';
+
+    const line = document.createElement('div');
+    line.className = 'day-line';
+    wrap.appendChild(line);
+
+    dayItems.forEach(it => {
+      const row = document.createElement('div');
+      row.className = 'item type-' + it.type;
+
+      const t = types.find(x => x.id === it.type);
+      const dot = document.createElement('div');
+      dot.className = 'dot';
+      dot.innerHTML = '<i class="ti ' + t.icon + '"></i>';
+      row.appendChild(dot);
+
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = '<div class="time">' + it.time + '</div><div class="title">' + it.title + '</div>' + (it.sub ? '<div class="sub">' + it.sub + '</div>' : '');
+      row.appendChild(card);
+
+      wrap.appendChild(row);
+    });
+
+    tl.appendChild(wrap);
+  });
+
+  if (tl.children.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = 'Aucune activité pour ces filtres.';
+    tl.appendChild(empty);
+  }
+}
+
+render();
+</script>
+</body>
+</html>
