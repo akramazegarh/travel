@@ -100,6 +100,41 @@
   .pdf-status button{position:absolute;right:8px;top:7px;border:0;background:transparent;color:#fff;font-size:22px;cursor:pointer}
   .exporting .actions,.exporting .row-delete,.exporting .pdf-status{display:none!important}
 
+
+  /* Dedicated fixed A4 clone used only during PDF generation */
+  .pdf-export-host{
+    position:fixed!important;
+    left:0!important;
+    top:0!important;
+    width:210mm!important;
+    height:297mm!important;
+    margin:0!important;
+    padding:0!important;
+    overflow:hidden!important;
+    transform:none!important;
+    background:#fff!important;
+    z-index:-10000!important;
+  }
+  .pdf-export-host .page{
+    position:relative!important;
+    left:0!important;
+    top:0!important;
+    width:210mm!important;
+    height:297mm!important;
+    min-width:210mm!important;
+    max-width:210mm!important;
+    min-height:297mm!important;
+    max-height:297mm!important;
+    margin:0!important;
+    transform:none!important;
+    transform-origin:top left!important;
+    overflow:hidden!important;
+    box-sizing:border-box!important;
+  }
+  .pdf-export-host .row-delete,
+  .pdf-export-host .actions,
+  .pdf-export-host .pdf-status{display:none!important}
+
   @page { size:A4; margin:0; }
   @media print {
     html,body { width:210mm!important; height:297mm!important; margin:0!important; padding:0!important; overflow:visible!important; background:#fff!important; }
@@ -111,7 +146,8 @@
     .amount-in-words{border:0!important;box-shadow:none!important;background:transparent!important}
   }
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 <div id="pdfStatus" class="pdf-status" role="alert"><span id="pdfStatusText"></span><button type="button" id="closePdfStatus" aria-label="Fermer">×</button></div>
@@ -163,19 +199,22 @@
 <script>
 (()=>{'use strict';
 const body=document.getElementById('devisBody');
-const viewport=document.getElementById('pageViewport');
+const viewport=document.getElementById('pageViewport')||document.getElementById('quotePage')||document.querySelector('.page');
 function fitMobilePreview(){
-  if(window.matchMedia('print').matches){viewport.style.transform='none';return;}
-  const pageWidth=viewport.offsetWidth;
+  const target=viewport||document.getElementById('quotePage')||document.querySelector('.page');
+  if(!target||!target.style){console.error('A4 viewport/page introuvable');return;}
+  if(window.matchMedia&&window.matchMedia('print').matches){target.style.transform='none';target.style.marginBottom='0';return;}
+  const pageWidth=target.offsetWidth||document.getElementById('quotePage')?.offsetWidth||794;
   const available=Math.max(280,window.innerWidth-8);
   const scale=Math.min(1,available/pageWidth);
-  viewport.style.transform=`scale(${scale})`;
-  viewport.style.marginLeft=scale<1?'4px':'auto';
-  viewport.style.marginRight=scale<1?'0':'auto';
-  const pageHeight=document.getElementById('quotePage').offsetHeight;
-  viewport.style.marginBottom=`${pageHeight*(scale-1)}px`;
+  target.style.transform=`scale(${scale})`;
+  target.style.transformOrigin='top left';
+  target.style.marginLeft=scale<1?'4px':'auto';
+  target.style.marginRight=scale<1?'0':'auto';
+  const page=document.getElementById('quotePage')||document.querySelector('.page');
+  const pageHeight=page?.offsetHeight||target.offsetHeight||1123;
+  target.style.marginBottom=`${pageHeight*(scale-1)}px`;
 }
-
 const parse=v=>Number.parseFloat(String(v||'').replace(/\u00a0/g,'').replace(/\s/g,'').replace(',','.').replace(/[^0-9.-]/g,''))||0;
 const money=v=>v.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}).replace(/\u202f/g,' ');
 function totals(){let ttc=0;body.querySelectorAll('tr').forEach(r=>{const line=parse(r.querySelector('.price').textContent)*parse(r.querySelector('.qty').textContent);r.querySelector('.line-total').textContent=money(line);ttc+=line});const ht=ttc/1.2;document.getElementById('ht').textContent=money(ht);document.getElementById('tva').textContent=money(ttc-ht);document.getElementById('ttc').textContent=money(ttc)+' DHS'}
@@ -193,34 +232,97 @@ async function printFallback(reason){
   try{window.print()}catch(err){showPdfStatus('Échec total de l’export PDF : '+(err?.message||String(err)),'error')}
 }
 async function pdf(){
-  totals();hidePdfStatus();
-  const oldTitle=document.title;
-  const number=document.getElementById('quoteNumber').textContent.trim()||'devis';
+  totals();
+  hidePdfStatus();
+
+  const source=document.getElementById('quotePage')||document.querySelector('.page');
+  if(!source){
+    showPdfStatus('Erreur : la page A4 #quotePage est introuvable.','error');
+    return;
+  }
+
+  const number=(document.getElementById('quoteNumber')?.textContent||'devis').trim()||'devis';
   const filename='devis-'+number+'.pdf';
-  const page=document.getElementById('quotePage');
-  const oldTransform=viewport.style.transform;
-  const oldMarginBottom=viewport.style.marginBottom;
-  viewport.style.transform='none';viewport.style.marginBottom='0';
-  document.body.classList.add('exporting');
-  document.title='devis-'+number;
+  let host=null;
+
   try{
-    if(typeof window.html2pdf!=='function') throw new Error('La librairie PDF ne s’est pas chargée. Vérifiez la connexion Internet ou ouvrez le fichier dans Chrome/Safari.');
-    await window.html2pdf().set({
-      margin:0,
-      filename,
-      image:{type:'jpeg',quality:0.98},
-      html2canvas:{scale:2,useCORS:true,allowTaint:true,logging:false,backgroundColor:'#ffffff',scrollX:0,scrollY:0,windowWidth:page.scrollWidth,windowHeight:page.scrollHeight},
-      jsPDF:{unit:'mm',format:'a4',orientation:'portrait',compress:true},
-      pagebreak:{mode:['avoid-all','css','legacy']}
-    }).from(page).save();
-    showPdfStatus('PDF généré. Vérifiez le dossier Téléchargements de votre téléphone.','warning');
+    if(typeof window.html2canvas!=='function' || !window.jspdf?.jsPDF){
+      throw new Error('Les bibliothèques PDF ne sont pas chargées. Rechargez la page avec une connexion Internet.');
+    }
+
+    document.body.classList.add('exporting');
+    showPdfStatus('Génération du PDF A4 en cours…','warning');
+
+    host=document.createElement('div');
+    host.className='pdf-export-host';
+
+    const clone=source.cloneNode(true);
+    clone.removeAttribute('id');
+    clone.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
+    clone.querySelectorAll('.row-delete').forEach(el=>el.remove());
+
+    /* Copy live values that cloneNode may not preserve for form fields. */
+    const sourceInputs=source.querySelectorAll('input,textarea,select');
+    const cloneInputs=clone.querySelectorAll('input,textarea,select');
+    sourceInputs.forEach((input,index)=>{
+      const target=cloneInputs[index];
+      if(!target)return;
+      if('value' in target)target.value=input.value;
+      if(input.tagName==='TEXTAREA')target.textContent=input.value;
+    });
+
+    host.appendChild(clone);
+    document.body.appendChild(host);
+
+    /* Wait for fonts, images and layout before capturing. */
+    if(document.fonts?.ready)await document.fonts.ready;
+    const images=[...clone.querySelectorAll('img')];
+    await Promise.all(images.map(img=>img.complete?Promise.resolve():new Promise(resolve=>{
+      img.onload=resolve;img.onerror=resolve;
+    })));
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+
+    const canvas=await window.html2canvas(clone,{
+      scale:2,
+      useCORS:true,
+      allowTaint:false,
+      backgroundColor:'#ffffff',
+      logging:false,
+      scrollX:0,
+      scrollY:0,
+      width:clone.scrollWidth,
+      height:clone.scrollHeight,
+      windowWidth:clone.scrollWidth,
+      windowHeight:clone.scrollHeight,
+      onclone:doc=>{
+        const exported=doc.querySelector('.pdf-export-host .page');
+        if(exported){
+          exported.style.width='210mm';
+          exported.style.height='297mm';
+          exported.style.transform='none';
+          exported.style.margin='0';
+        }
+      }
+    });
+
+    const {jsPDF}=window.jspdf;
+    const pdfDoc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true});
+    const imageData=canvas.toDataURL('image/jpeg',0.98);
+    pdfDoc.addImage(imageData,'JPEG',0,0,210,297,undefined,'FAST');
+    pdfDoc.save(filename);
+
+    showPdfStatus('PDF A4 généré. Vérifiez le dossier Téléchargements.','warning');
   }catch(err){
     console.error('PDF export error:',err);
-    document.body.classList.remove('exporting');
-    await printFallback(err?.message||String(err));
+    const detail=err?.message||String(err);
+    showPdfStatus('Échec de la génération directe : '+detail+' Tentative avec la boîte d’impression…','error');
+    await new Promise(resolve=>setTimeout(resolve,500));
+    try{window.print()}catch(printErr){
+      showPdfStatus('Export impossible : '+(printErr?.message||String(printErr)),'error');
+    }
   }finally{
-    document.body.classList.remove('exporting');document.title=oldTitle;
-    viewport.style.transform=oldTransform;viewport.style.marginBottom=oldMarginBottom;
+    if(host?.parentNode)host.remove();
+    document.body.classList.remove('exporting');
     fitMobilePreview();
   }
 }
