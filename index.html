@@ -94,6 +94,12 @@
     }
   }
 
+
+  .pdf-status{display:none;position:fixed;left:10px;right:10px;top:10px;z-index:20000;padding:12px 42px 12px 14px;border-radius:8px;color:#fff;background:#117868;font:700 13px/1.4 Arial,sans-serif;box-shadow:0 3px 16px rgba(0,0,0,.28);word-break:break-word}
+  .pdf-status.error{background:#b3261e}.pdf-status.warning{background:#8a5a00}.pdf-status.show{display:block}
+  .pdf-status button{position:absolute;right:8px;top:7px;border:0;background:transparent;color:#fff;font-size:22px;cursor:pointer}
+  .exporting .actions,.exporting .row-delete,.exporting .pdf-status{display:none!important}
+
   @page { size:A4; margin:0; }
   @media print {
     html,body { width:210mm!important; height:297mm!important; margin:0!important; padding:0!important; overflow:visible!important; background:#fff!important; }
@@ -105,8 +111,10 @@
     .amount-in-words{border:0!important;box-shadow:none!important;background:transparent!important}
   }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
+<div id="pdfStatus" class="pdf-status" role="alert"><span id="pdfStatusText"></span><button type="button" id="closePdfStatus" aria-label="Fermer">×</button></div>
 <div class="actions"><button class="action-btn secondary" type="button" id="addLineBtn">+ Ajouter une ligne</button><button class="action-btn" type="button" id="exportBtn">Exporter en PDF</button></div>
 <main class="page">
   <header class="header">
@@ -173,8 +181,50 @@ const money=v=>v.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFraction
 function totals(){let ttc=0;body.querySelectorAll('tr').forEach(r=>{const line=parse(r.querySelector('.price').textContent)*parse(r.querySelector('.qty').textContent);r.querySelector('.line-total').textContent=money(line);ttc+=line});const ht=ttc/1.2;document.getElementById('ht').textContent=money(ht);document.getElementById('tva').textContent=money(ttc-ht);document.getElementById('ttc').textContent=money(ttc)+' DHS'}
 function bind(r){if(!r.querySelector('.row-delete')){const b=document.createElement('button');b.type='button';b.className='row-delete';b.textContent='×';b.title='Supprimer la ligne';b.onclick=()=>{r.remove();totals()};r.appendChild(b)}r.querySelectorAll('.price,.qty').forEach(c=>{c.oninput=totals;c.onblur=()=>{c.textContent=money(parse(c.textContent));totals()}})}
 function add(){const r=document.createElement('tr');r.innerHTML='<td contenteditable="true">NOUVELLE LIGNE</td><td class="price" contenteditable="true">0,00</td><td contenteditable="true">UNITÉ</td><td class="qty" contenteditable="true">1,00</td><td class="line-total">0,00</td>';body.appendChild(r);bind(r);totals();r.firstElementChild.focus()}
-function pdf(){totals();viewport.style.transform='none';viewport.style.marginBottom='0';document.body.classList.add('exporting');const old=document.title,n=document.getElementById('quoteNumber').textContent.trim()||'devis';document.title='devis-'+n;const clean=()=>{document.body.classList.remove('exporting');document.title=old;fitMobilePreview();window.removeEventListener('afterprint',clean)};window.addEventListener('afterprint',clean);window.print();setTimeout(clean,1000)}
-body.querySelectorAll('tr').forEach(bind);document.getElementById('addLineBtn').onclick=add;document.getElementById('exportBtn').onclick=pdf;window.addEventListener('resize',fitMobilePreview,{passive:true});window.addEventListener('orientationchange',fitMobilePreview,{passive:true});totals();requestAnimationFrame(fitMobilePreview);
+function showPdfStatus(message,type='error'){
+  const box=document.getElementById('pdfStatus');
+  document.getElementById('pdfStatusText').textContent=message;
+  box.className='pdf-status show '+type;
+}
+function hidePdfStatus(){document.getElementById('pdfStatus').className='pdf-status'}
+async function printFallback(reason){
+  showPdfStatus('Téléchargement automatique indisponible. Ouverture de la boîte d’impression. Choisissez « Enregistrer au format PDF ». Détail : '+reason,'warning');
+  await new Promise(resolve=>setTimeout(resolve,350));
+  try{window.print()}catch(err){showPdfStatus('Échec total de l’export PDF : '+(err?.message||String(err)),'error')}
+}
+async function pdf(){
+  totals();hidePdfStatus();
+  const oldTitle=document.title;
+  const number=document.getElementById('quoteNumber').textContent.trim()||'devis';
+  const filename='devis-'+number+'.pdf';
+  const page=document.getElementById('quotePage');
+  const oldTransform=viewport.style.transform;
+  const oldMarginBottom=viewport.style.marginBottom;
+  viewport.style.transform='none';viewport.style.marginBottom='0';
+  document.body.classList.add('exporting');
+  document.title='devis-'+number;
+  try{
+    if(typeof window.html2pdf!=='function') throw new Error('La librairie PDF ne s’est pas chargée. Vérifiez la connexion Internet ou ouvrez le fichier dans Chrome/Safari.');
+    await window.html2pdf().set({
+      margin:0,
+      filename,
+      image:{type:'jpeg',quality:0.98},
+      html2canvas:{scale:2,useCORS:true,allowTaint:true,logging:false,backgroundColor:'#ffffff',scrollX:0,scrollY:0,windowWidth:page.scrollWidth,windowHeight:page.scrollHeight},
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait',compress:true},
+      pagebreak:{mode:['avoid-all','css','legacy']}
+    }).from(page).save();
+    showPdfStatus('PDF généré. Vérifiez le dossier Téléchargements de votre téléphone.','warning');
+  }catch(err){
+    console.error('PDF export error:',err);
+    document.body.classList.remove('exporting');
+    await printFallback(err?.message||String(err));
+  }finally{
+    document.body.classList.remove('exporting');document.title=oldTitle;
+    viewport.style.transform=oldTransform;viewport.style.marginBottom=oldMarginBottom;
+    fitMobilePreview();
+  }
+}
+body.querySelectorAll('tr').forEach(bind);document.getElementById('addLineBtn').onclick=add;document.getElementById('exportBtn').onclick=pdf;document.getElementById('closePdfStatus').onclick=hidePdfStatus;window.addEventListener('resize',fitMobilePreview,{passive:true});window.addEventListener('orientationchange',fitMobilePreview,{passive:true});totals();requestAnimationFrame(fitMobilePreview);
 })();
 </script>
 </body>
